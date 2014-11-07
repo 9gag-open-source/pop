@@ -7,9 +7,10 @@
  of patent rights can be found in the PATENTS file in the same directory.
  */
 
+#define SENTEST_IGNORE_DEPRECATION_WARNING
 #import <SenTestingKit/SenTestingKit.h>
 
-#import <POP/POPAnimatableProperty.h>
+#import <pop/POPAnimatableProperty.h>
 
 static const CGFloat epsilon = 0.0001f;
 static NSArray *properties = @[@"name", @"readBlock", @"writeBlock", @"threshold"];
@@ -47,6 +48,9 @@ static void assertPropertyEqual(id self, POPAnimatableProperty *prop1, POPAnimat
                      kPOPLayerShadowOffset,
                      kPOPLayerShadowOpacity,
                      kPOPLayerShadowRadius,
+                     kPOPLayerCornerRadius,
+                     kPOPLayerBorderWidth,
+                     kPOPLayerBorderColor,
                      kPOPShapeLayerStrokeStart,
                      kPOPShapeLayerStrokeEnd,
                      kPOPShapeLayerStrokeColor,
@@ -57,8 +61,12 @@ static void assertPropertyEqual(id self, POPAnimatableProperty *prop1, POPAnimat
                      kPOPViewFrame,
                      kPOPViewBounds,
                      kPOPViewSize,
+                     kPOPViewTintColor,
+                     kPOPScrollViewZoomScale,
                      kPOPTableViewContentSize,
                      kPOPTableViewContentOffset,
+                     kPOPCollectionViewContentSize,
+                     kPOPCollectionViewContentSize,
                      kPOPLabelTextColor
 #endif
                      ];

@@ -10,9 +10,12 @@
 #import <QuartzCore/QuartzCore.h>
 
 #import <OCMock/OCMock.h>
+
+#define SENTEST_IGNORE_DEPRECATION_WARNING
 #import <SenTestingKit/SenTestingKit.h>
 
-#import <POP/POP.h>
+#import <pop/POP.h>
+#import <pop/POPAnimatorPrivate.h>
 
 #import "POPAnimationTestsExtras.h"
 
@@ -30,6 +33,7 @@
   [super setUp];
   _animator = [[POPAnimator sharedAnimator] retain];
   _beginTime = CACurrentMediaTime();
+  _animator.beginTime = _beginTime;
 }
 
 - (void)tearDown

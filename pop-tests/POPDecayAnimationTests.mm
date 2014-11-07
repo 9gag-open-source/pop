@@ -10,10 +10,12 @@
 #import <QuartzCore/QuartzCore.h>
 
 #import <OCMock/OCMock.h>
+
+#define SENTEST_IGNORE_DEPRECATION_WARNING
 #import <SenTestingKit/SenTestingKit.h>
 
-#import <POP/POP.h>
-#import <POP/POPAnimatorPrivate.h>
+#import <pop/POP.h>
+#import <pop/POPAnimatorPrivate.h>
 
 #import "POPAnimatable.h"
 #import "POPAnimationTestsExtras.h"
@@ -375,7 +377,7 @@ static const CGFloat epsilon = 0.0001f;
   [[delegate expect] pop_animationDidStop:anim finished:YES];
 
   // run animation some more
-  POPAnimatorRenderDuration(self.animator, CACurrentMediaTime(), 4, 1.0/60.0);
+  POPAnimatorRenderDuration(self.animator, self.beginTime + 1, 4, 1.0/60.0);
   NSArray *moreWriteEvents = [tracer eventsWithType:kPOPAnimationEventPropertyWrite];
 
   // verify stop delegation
@@ -426,6 +428,47 @@ static const CGFloat epsilon = 0.0001f;
   STAssertTrue(!CGRectEqualToRect(fromRect, lastRect), @"unexpected last rect value: %@", lastEvent);
   STAssertTrue(lastRect.origin.x == lastRect.origin.y && lastRect.size.width == lastRect.size.height && lastRect.origin.x < lastRect.size.width, @"unexpected last rect value: %@", lastEvent);
 }
+
+#if TARGET_OS_IPHONE
+- (void)testEdgeInsetsSupport
+{
+  const UIEdgeInsets fromEdgeInsets = UIEdgeInsetsZero;
+  const UIEdgeInsets velocityEdgeInsets = UIEdgeInsetsMake(100, 100, 1000, 1000);
+
+  POPDecayAnimation *anim = [POPDecayAnimation animation];
+  anim.property = [POPAnimatableProperty propertyWithName:kPOPScrollViewContentInset];
+  anim.fromValue = [NSValue valueWithUIEdgeInsets:fromEdgeInsets];
+  anim.velocity = [NSValue valueWithUIEdgeInsets:velocityEdgeInsets];
+
+  id delegate = [OCMockObject niceMockForProtocol:@protocol(POPAnimationDelegate)];
+  anim.delegate = delegate;
+
+  // expect start and stop to be called
+  [[delegate expect] pop_animationDidStart:anim];
+  [[delegate expect] pop_animationDidStop:anim finished:YES];
+
+  // start tracer
+  POPAnimationTracer *tracer = anim.tracer;
+  [tracer start];
+
+  id scrollView = [OCMockObject niceMockForClass:[UIScrollView class]];
+  [scrollView pop_addAnimation:anim forKey:nil];
+
+  // run animation
+  POPAnimatorRenderDuration(self.animator, self.beginTime, 3, 1.0/60.0);
+
+  NSArray *writeEvents = [tracer eventsWithType:kPOPAnimationEventPropertyWrite];
+
+  // verify delegate
+  [delegate verify];
+
+  POPAnimationValueEvent *lastEvent = [writeEvents lastObject];
+  UIEdgeInsets lastEdgeInsets = [lastEvent.value UIEdgeInsetsValue];
+
+  STAssertTrue(!UIEdgeInsetsEqualToEdgeInsets(fromEdgeInsets, lastEdgeInsets), @"unexpected last edge insets value: %@", lastEvent);
+  STAssertTrue(lastEdgeInsets.top == lastEdgeInsets.left && lastEdgeInsets.bottom == lastEdgeInsets.right && lastEdgeInsets.top < lastEdgeInsets.bottom, @"unexpected last edge insets value: %@", lastEvent);
+}
+#endif
 
 - (void)testEndValueOnReuse
 {

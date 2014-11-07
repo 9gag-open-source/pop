@@ -10,10 +10,12 @@
 #import <QuartzCore/QuartzCore.h>
 
 #import <OCMock/OCMock.h>
+
+#define SENTEST_IGNORE_DEPRECATION_WARNING
 #import <SenTestingKit/SenTestingKit.h>
 
-#import <POP/POP.h>
-#import <POP/POPAnimatorPrivate.h>
+#import <pop/POP.h>
+#import <pop/POPAnimatorPrivate.h>
 
 #import "POPAnimatable.h"
 #import "POPAnimationTestsExtras.h"

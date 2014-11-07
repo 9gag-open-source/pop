@@ -7,16 +7,17 @@
  of patent rights can be found in the PATENTS file in the same directory.
  */
 
+#define SENTEST_IGNORE_DEPRECATION_WARNING
 #import <SenTestingKit/SenTestingKit.h>
 
 #import <OCMock/OCMock.h>
 #import <QuartzCore/QuartzCore.h>
 
-#import <POP/POPAnimation.h>
-#import <POP/POPAnimationPrivate.h>
-#import <POP/POPAnimator.h>
-#import <POP/POPAnimatorPrivate.h>
-#import <POP/POPAnimationExtras.h>
+#import <pop/POPAnimation.h>
+#import <pop/POPAnimationPrivate.h>
+#import <pop/POPAnimator.h>
+#import <pop/POPAnimatorPrivate.h>
+#import <pop/POPAnimationExtras.h>
 
 #import "POPAnimatable.h"
 #import "POPAnimationInternal.h"
@@ -420,6 +421,54 @@ static NSString *animationKey = @"key";
   STAssertTrue(CGRectEqualToRect(lastRect, toRect), @"unexpected last rect value: %@", lastEvent);
 }
 
+#if TARGET_OS_IPHONE
+- (void)testEdgeInsetsSupport
+{
+  const UIEdgeInsets fromEdgeInsets = UIEdgeInsetsZero;
+  const UIEdgeInsets toEdgeInsets = UIEdgeInsetsMake(100, 200, 200, 400);
+  const UIEdgeInsets velocityEdgeInsets = UIEdgeInsetsMake(1000, 1000, 1000, 1000);
+
+  POPSpringAnimation *anim = [POPSpringAnimation animation];
+  anim.property = [POPAnimatableProperty propertyWithName:kPOPScrollViewContentInset];
+  anim.fromValue = [NSValue valueWithUIEdgeInsets:fromEdgeInsets];
+  anim.toValue = [NSValue valueWithUIEdgeInsets:toEdgeInsets];
+  anim.velocity = [NSValue valueWithUIEdgeInsets:velocityEdgeInsets];
+  id delegate = [OCMockObject niceMockForProtocol:@protocol(POPAnimationDelegate)];
+  anim.delegate = delegate;
+
+  // expect start and stop to be called
+  [[delegate expect] pop_animationDidStart:anim];
+  [[delegate expect] pop_animationDidStop:anim finished:YES];
+
+  // start tracer
+  POPAnimationTracer *tracer = anim.tracer;
+  [tracer start];
+
+  id scrollView = [OCMockObject niceMockForClass:[UIScrollView class]];
+  [scrollView pop_addAnimation:anim forKey:nil];
+
+  // expect final value to be set
+  [[scrollView expect] setContentInset:toEdgeInsets];
+
+  // run animation
+  POPAnimatorRenderDuration(self.animator, self.beginTime, 3, 1.0/60.0);
+
+  NSArray *writeEvents = [tracer eventsWithType:kPOPAnimationEventPropertyWrite];
+
+  // verify delegate
+  [delegate verify];
+
+  // verify scroll view
+  [scrollView verify];
+
+  POPAnimationValueEvent *lastEvent = [writeEvents lastObject];
+  UIEdgeInsets lastEdgeInsets = [lastEvent.value UIEdgeInsetsValue];
+
+  // verify last insets are to insets
+  STAssertTrue(UIEdgeInsetsEqualToEdgeInsets(lastEdgeInsets, toEdgeInsets), @"unexpected last edge insets value: %@", lastEvent);
+}
+#endif
+
 - (void)testColorSupport
 {
   CGFloat fromValues[4] = {1, 1, 1, 1};
@@ -554,7 +603,11 @@ static BOOL _floatingPointEqual(CGFloat a, CGFloat b)
   STAssertTrue(fromColor, @"unexpected value %p", fromColor);
 
   // verify from color clear
+#if TARGET_OS_IPHONE
   POPAssertColorEqual(fromColor, [UIColor clearColor].CGColor);
+#else
+  POPAssertColorEqual(fromColor, [NSColor clearColor].CGColor);
+#endif
 }
 
 - (void)testExcessiveJumpInTime
@@ -581,6 +634,27 @@ static BOOL _floatingPointEqual(CGFloat a, CGFloat b)
 
   // verify start stop
   [delegate verify];
+
+  // verify last write event value
+  POPAnimationValueEvent *writeEvent = [[tracer eventsWithType:kPOPAnimationEventPropertyWrite] lastObject];
+  STAssertEqualObjects(writeEvent.value, anim.toValue, @"unexpected last write event %@", writeEvent);
+}
+
+- (void)testEquivalentFromToValues
+{
+  POPSpringAnimation *anim = [POPSpringAnimation animationWithPropertyNamed:kPOPLayerPosition];
+  anim.fromValue = [NSValue valueWithCGPoint:CGPointZero];
+  anim.toValue = [NSValue valueWithCGPoint:CGPointZero];
+  anim.velocity = [NSValue valueWithCGPoint:CGPointMake(1000.0, 1000.0)];
+
+  // start tracer
+  POPAnimationTracer *tracer = anim.tracer;
+  [tracer start];
+
+  // run animation
+  CALayer *layer = [CALayer layer];
+  [layer pop_addAnimation:anim forKey:@""];
+  POPAnimatorRenderDuration(self.animator, self.beginTime, 3, 1.0/60.0);
 
   // verify last write event value
   POPAnimationValueEvent *writeEvent = [[tracer eventsWithType:kPOPAnimationEventPropertyWrite] lastObject];
